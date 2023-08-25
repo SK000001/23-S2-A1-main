@@ -42,7 +42,7 @@ class MonsterTeam:
     def __init__(self, team_mode: TeamMode, selection_mode, sort_key=SortMode.HP, provided_monsters=None) -> None:
         self.group = []
         self.monsters = get_all_monsters()
-        self.sort_key, self.reversed = sort_key, True
+        self.sort_key, self.reversed = sort_key, False
         self.lives = 2
         
         self.team_mode = team_mode
@@ -60,25 +60,44 @@ class MonsterTeam:
             
         self.original = [i for i in self.group]
         
+    def get_stat(self, monster1, monster2):
+        if self.sort_key == self.SortMode.HP:
+            return monster1.get_hp(), monster2.get_hp()
+        
+        if self.sort_key == self.SortMode.ATTACK:
+            return monster1.get_attack(), monster2.get_attack()
+        
+        if self.sort_key == self.SortMode.DEFENSE:
+            return monster1.get_defense(), monster2.get_defense()
+            
+        if self.sort_key == self.SortMode.SPEED:
+            return monster1.get_speed(), monster2.get_speed()
+            
+        if self.sort_key == self.SortMode.LEVEL:
+            return monster1.get_level(), monster2.get_level()   
         
     def sort_group(self):
-        if self.team_mode == self.TeamMode.OPTIMISE:
-            if self.sort_key == self.SortMode.HP:
-                sort_func = lambda x: x.get_hp()
+        for i in range(1, len(self.group)):
+            j = i-1
+            
+            item, next_item = self.group[i], self.group[j]
+            
+            if self.reversed == False:
+                stat1, stat2 = self.get_stat(item, next_item)
+            else:
+                stat1, stat2 = self.get_stat(next_item, item)
+            
+            while j >= 0 and stat1 > stat2:
+                self.group[j + 1] = next_item
+                j -= 1
+                next_item = self.group[j]
                 
-            if self.sort_key == self.SortMode.ATTACK:
-                sort_func = lambda x: x.get_attack()
-                
-            if self.sort_key == self.SortMode.DEFENSE:
-                sort_func = lambda x: x.get_defense()
-                
-            if self.sort_key == self.SortMode.SPEED:
-                sort_func = lambda x: x.get_speed()
-                
-            if self.sort_key == self.SortMode.LEVEL:
-                sort_func = lambda x: x.get_level()
-                
-            self.group = sorted(self.group, key=sort_func, reverse=self.reversed)
+                if self.reversed == False:
+                    stat1, stat2 = self.get_stat(item, next_item)
+                else:
+                    stat1, stat2 = self.get_stat(next_item, item)
+
+            self.group[j + 1] = item
 
     def add_to_team(self, monster: MonsterBase):
         if self.team_mode == self.TeamMode.FRONT:
@@ -110,12 +129,12 @@ class MonsterTeam:
             return
         
         if self.team_mode == self.TeamMode.OPTIMISE:
-            if self.reversed:
+            self.group = self.group[::-1]
+            
+            if self.reversed == True:
                 self.reversed = False
             else:
                 self.reversed = True
-            
-            self.sort_group()
 
     def regenerate_team(self) -> None:
         x = []
@@ -316,41 +335,62 @@ class MonsterTeam:
             
 
 if __name__ == "__main__":
-    from helpers import Flamikin, Aquariuma, Vineon, Strikeon
+    from helpers import Flamikin, Aquariuma, Rockodile, Thundrake
     from data_structures.referential_array import ArrayR
     
-    team1 = MonsterTeam(
-        team_mode=MonsterTeam.TeamMode.BACK,
+    my_monsters = ArrayR(4)
+    my_monsters[0] = Flamikin   # 6 HP
+    my_monsters[1] = Aquariuma  # 8 HP
+    my_monsters[2] = Rockodile  # 9 HP
+    my_monsters[3] = Thundrake  # 5 HP
+    team = MonsterTeam(
+        team_mode=MonsterTeam.TeamMode.OPTIMISE,
         selection_mode=MonsterTeam.SelectionMode.PROVIDED,
-        provided_monsters=ArrayR.from_list([
-            Flamikin,
-            Aquariuma,
-            Vineon,
-            Strikeon,
-        ])
+        sort_key=MonsterTeam.SortMode.HP,
+        provided_monsters=my_monsters,
     )
-    team2 = MonsterTeam(
-        team_mode=MonsterTeam.TeamMode.FRONT,
-        selection_mode=MonsterTeam.SelectionMode.PROVIDED,
-        provided_monsters=ArrayR.from_list([
-            Flamikin,
-            Aquariuma,
-            Vineon,
-            Strikeon,
-        ])
-    )
+    # Rockodile, Aquariuma, Flamikin, Thundrake
+    rockodile = team.retrieve_from_team()
+    aquariuma = team.retrieve_from_team()
+    flamikin = team.retrieve_from_team()
     
-    print()
-    print(team1)
-    print(team1.retrieve_from_team())
-    print(team1.retrieve_from_team())
-    print(team1.retrieve_from_team())
-    print(team1.retrieve_from_team())
+    print(rockodile, aquariuma, flamikin, sep="\n", end="\n\n")
+    # self.assertIsInstance(rockodile, Rockodile)
+    # self.assertIsInstance(aquariuma, Aquariuma)
+    # self.assertIsInstance(flamikin, Flamikin)
+
+    rockodile.set_hp(2)
+    flamikin.set_hp(4)
+    team.add_to_team(rockodile)
+    team.add_to_team(aquariuma)
+    team.add_to_team(flamikin)
+    # # Aquariuma, Thundrake, Flamikin, Rockodile
+
+    team.special()
+    # # Rockodile, Flamikin, Thundrake, Aquariuma
+    # rockodile = team.retrieve_from_team()
+    # flamikin = team.retrieve_from_team()
+    # self.assertIsInstance(rockodile, Rockodile)
+    # self.assertIsInstance(flamikin, Flamikin)
+    print(rockodile, flamikin, sep="\n", end="\n\n")
+
+
+    flamikin.set_hp(1)
+    team.add_to_team(flamikin)
+    team.add_to_team(rockodile)
+
+    flamikin = team.retrieve_from_team()
+    # self.assertIsInstance(flamikin, Flamikin)
+    print(flamikin, end="\n\n")
+
+    team.regenerate_team()
+    # # Back to normal sort order and Rockodile, Aquariuma, Flamikin, Thundrake
+    rockodile = team.retrieve_from_team()
+    aquariuma = team.retrieve_from_team()
+    # self.assertIsInstance(rockodile, Rockodile)
+    # self.assertIsInstance(aquariuma, Aquariuma)
+    # self.assertEqual(rockodile.get_hp(), 9)
+    # self.assertEqual(aquariuma.get_hp(), 8)
     
-    print()
-    print(team2)
-    print(team2.retrieve_from_team())
-    print(team2.retrieve_from_team())
-    print(team2.retrieve_from_team())
-    print(team2.retrieve_from_team())
+    print(rockodile, aquariuma, rockodile.get_hp(), aquariuma.get_hp(), sep="\n")
 
